@@ -59,6 +59,83 @@ public class Taquilla {
         salida.println("Monto total: $" + total.toPlainString() + " MXN");
     }
 
+    public Optional<Reservacion> cobrar(Cliente cliente, Sala sala, Collection<Asiento> asientos) {
+        AdministradorBloqueos administrador = AdministradorBloqueos.paraSala(sala);
+        Reservacion reservacion;
+        try {
+            reservacion = administrador.iniciar(cliente, asientos);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            salida.println(e.getMessage());
+            return Optional.empty();
+        }
+        try {
+            mostrarResumen(reservacion.getAsientos());
+            while (!Thread.currentThread().isInterrupted()) {
+                salida.println("Pago: 1 efectivo, 2 terminal simulada, 0 cancelar:");
+                String opcion = leerPago();
+                if (opcion == null || opcion.equals("0")) {
+                    return Optional.empty();
+                }
+                boolean aprobado;
+                if (opcion.equals("1")) {
+                    salida.println("Importe recibido en MXN (punto decimal; 0 cancelar):");
+                    String importe = leerPago();
+                    if (importe == null || importe.equals("0")) {
+                        return Optional.empty();
+                    }
+                    BigDecimal recibido;
+                    try {
+                        if (!importe.matches("[0-9]+(\\.[0-9]{1,2})?")) {
+                            throw new IllegalArgumentException("Importe inválido.");
+                        }
+                        recibido = new BigDecimal(importe);
+                        aprobado = administrador.pagarEfectivo(reservacion, recibido);
+                    } catch (IllegalArgumentException e) {
+                        salida.println("Importe inválido. Intenta de nuevo.");
+                        continue;
+                    }
+                    if (aprobado) {
+                        salida.println("Cambio: $" + recibido.subtract(reservacion.getTotal()).toPlainString() + " MXN");
+                    } else {
+                        salida.println("Efectivo insuficiente. No se ha confirmado la reservación.");
+                    }
+                } else if (opcion.equals("2")) {
+                    salida.println("Resultado simulado: 1 aprobado, 2 rechazado, 0 cancelar:");
+                    String resultado = leerPago();
+                    if (resultado == null || resultado.equals("0")) {
+                        return Optional.empty();
+                    }
+                    if (!resultado.equals("1") && !resultado.equals("2")) {
+                        salida.println("Resultado inválido. Intenta de nuevo.");
+                        continue;
+                    }
+                    aprobado = administrador.pagarTerminal(reservacion, resultado.equals("1"));
+                    if (!aprobado) {
+                        salida.println("Pago rechazado. No se ha confirmado la reservación.");
+                    }
+                } else {
+                    salida.println("Opción inválida. Intenta de nuevo.");
+                    continue;
+                }
+                if (aprobado) {
+                    salida.println("Reservación confirmada: " + reservacion.getId());
+                    return Optional.of(reservacion);
+                }
+            }
+            return Optional.empty();
+        } finally {
+            // Libera solo cobros pendientes. Un pago ya confirmado permanece recuperable.
+            administrador.cancelar(reservacion);
+        }
+    }
+
+    private String leerPago() {
+        if (Thread.currentThread().isInterrupted() || !entrada.hasNextLine()) {
+            return null;
+        }
+        return entrada.nextLine().strip();
+    }
+
     // Demostración independiente: los asientos de ejemplo no crean una reservación.
     public static void main(String[] args) {
         Taquilla taquilla = new Taquilla(new Scanner(System.in), System.out);
@@ -69,8 +146,8 @@ public class Taquilla {
         System.out.println("Cliente: " + cliente.get().getNombre());
         System.out.println("Teléfono: " + cliente.get().getTelefono());
         System.out.println("Demostración con asientos de ejemplo A1 y A2:");
-        List<Asiento> asientos = new Sala(new BigDecimal("70.00"))
-                .getAsientos().subList(0, 2);
-        taquilla.mostrarResumen(asientos);
+        Sala sala = new Sala(new BigDecimal("70.00"));
+        List<Asiento> asientos = sala.getAsientos().subList(0, 2);
+        taquilla.cobrar(cliente.get(), sala, asientos);
     }
 }
