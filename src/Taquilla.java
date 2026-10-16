@@ -118,6 +118,7 @@ public class Taquilla {
                     continue;
                 }
                 if (aprobado) {
+                    generarComprobante(reservacion, java.nio.file.Path.of("comprobantes"));
                     salida.println("Reservación confirmada: " + reservacion.getId());
                     return Optional.of(reservacion);
                 }
@@ -136,7 +137,20 @@ public class Taquilla {
         return entrada.nextLine().strip();
     }
 
-    // Demostración independiente: los asientos de ejemplo no crean una reservación.
+    public Optional<java.nio.file.Path> generarComprobante(Reservacion reservacion,
+            java.nio.file.Path directorio) {
+        try {
+            java.nio.file.Path archivo = new GeneradorComprobante().generar(reservacion, directorio);
+            salida.println("Comprobante: " + archivo);
+            return Optional.of(archivo);
+        } catch (java.io.IOException | SecurityException e) {
+            salida.println("No se pudo escribir el comprobante. El pago y los asientos siguen confirmados. "
+                    + "Reintenta generar el folio " + reservacion.getId() + ".");
+            return Optional.empty();
+        }
+    }
+
+    // Demostración independiente del flujo principal, con datos únicamente en memoria.
     public static void main(String[] args) {
         Taquilla taquilla = new Taquilla(new Scanner(System.in), System.out);
         Optional<Cliente> cliente = taquilla.capturarCliente();
@@ -149,5 +163,11 @@ public class Taquilla {
         Sala sala = new Sala(new BigDecimal("70.00"));
         List<Asiento> asientos = sala.getAsientos().subList(0, 2);
         taquilla.cobrar(cliente.get(), sala, asientos);
+        AdministradorBloqueos administrador = AdministradorBloqueos.paraSala(sala);
+        for (Asiento asiento : asientos) {
+            System.out.println(asiento.getIdentificador() + ": "
+                    + administrador.consultarEstado(asiento.getIdentificador()));
+        }
+        System.out.println("Asientos disponibles: " + administrador.getDisponibles().size());
     }
 }

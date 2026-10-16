@@ -1,8 +1,7 @@
-# HU-02: checkpoints 4, 5 y 6
+# HU-02: checkpoints 4 a 8
 
-Esta entrega agrega pago simulado y protección durante el cobro. No modifica Main,
-Sala, Asiento ni CalculadoraPrecio. No actualiza los asientos a ocupado/pagado ni
-genera comprobantes.
+Esta entrega agrega pago simulado, protección durante el cobro, estado ocupado/pagado
+y comprobantes de texto. No modifica Main, Sala, Asiento ni CalculadoraPrecio.
 
 ## Compilar y probar
 
@@ -13,6 +12,7 @@ javac --release 21 -encoding UTF-8 -d out src/*.java tests/*.java
 java -cp out PruebasPrecio
 java -cp out PruebasTaquilla
 java -cp out PruebasCobro
+java -cp out PruebasComprobante
 java -cp out Taquilla
 ```
 
@@ -46,12 +46,44 @@ la salida de pantalla después del pago, getConfirmadas() permite recuperar la
 reservación por su ID, cliente, asientos y total, sin cobrar otra vez. Los nuevos
 intentos de pago sobre una operación terminada se rechazan.
 
-Los pagos confirmados mantienen protección deliberadamente hasta el checkpoint 7.
+Los pagos confirmados mantienen protección y sus asientos pasan a OCUPADO_PAGADO.
+El administrador deriva ese estado de la misma confirmación de la reservación:
+no mantiene una copia de estado que pueda quedar desactualizada. Las consultas
+consultarEstado(identificador) y getDisponibles() están sincronizadas con los cobros.
 No hay caducidad automática ni liberación de pagos exitosos: hacerlo permitiría vender
-otra vez esos lugares. La recuperación conserva un registro consultable para que
-el siguiente bloque complete la transición definitiva, sin bloqueos sin propietario.
+otra vez esos lugares. Los rechazos mantienen EN_COBRO hasta reintentar o cancelar;
+cancelar una operación pendiente devuelve sus asientos a DISPONIBLE.
 Quien use iniciar directamente debe cancelar su operación pendiente en un finally;
 el flujo de Taquilla ya lo hace.
+
+## Comprobantes y pruebas manuales
+
+Tras aprobar un pago, Taquilla genera `comprobantes/comprobante-<folio>.txt` en UTF-8.
+El archivo contiene folio, nombre, teléfono, asientos, total, método y fecha de
+confirmación con zona America/Mexico_City. La fecha se registra una vez al pagar.
+La demostración muestra A1 y A2 como OCUPADO_PAGADO y 13 disponibles tras el pago;
+si se cancela antes del pago muestra DISPONIBLE y 15 disponibles.
+Abrir el archivo en un editor de texto permite revisarlo e imprimirlo manualmente.
+
+GeneradorComprobante rechaza reservaciones pendientes o canceladas. Escribe primero
+un temporal en el directorio destino y lo renombra sin reemplazar un archivo existente.
+Las llamadas concurrentes del mismo proceso se serializan. Un reintento con el mismo
+folio devuelve el archivo existente si coincide exactamente; si difiere, avisa del
+conflicto sin sobrescribirlo. Un error de archivo no cancela el pago ni la ocupación.
+No se garantiza recuperación de archivos frente a corte de energía o cierre forzado.
+
+Para reintentar desde código, conservar la Sala y consultar
+`AdministradorBloqueos.paraSala(sala).getConfirmadas()`, localizar la reservación por
+folio y llamar `taquilla.generarComprobante(reservacion, directorio)` de nuevo.
+La reemisión no llama a ningún método de pago. El directorio puede ser, por ejemplo,
+`Path.of("comprobantes")`; se rechazan src y tests como destinos en la raíz del proyecto.
+
+PruebasComprobante realiza una demostración reproducible de error de escritura usando
+un archivo como directorio destino; después verifica pago y ocupación, reintenta en
+una carpeta válida y comprueba el archivo. También prueba ambos métodos, contenido,
+fecha estable, generación simultánea, doble cobro y rechazo de sobreescrituras.
+Los artefactos de pruebas se guardan en out/ y los recibos de la demostración en
+comprobantes/; ambos están excluidos de Git. Ninguno se escribe en src/ ni tests/.
 
 ## Límites
 

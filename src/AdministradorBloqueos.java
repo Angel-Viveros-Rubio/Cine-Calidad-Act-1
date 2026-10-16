@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.WeakHashMap;
 
 public final class AdministradorBloqueos {
+    public enum EstadoAsiento { DISPONIBLE, EN_COBRO, OCUPADO_PAGADO }
     private static final Map<Sala, AdministradorBloqueos> POR_SALA = new WeakHashMap<>();
     private final Map<String, Asiento> catalogo = new HashMap<>();
     private final Map<String, Reservacion> bloqueos = new HashMap<>();
@@ -59,14 +60,14 @@ public final class AdministradorBloqueos {
         if (recibido.compareTo(reservacion.getTotal()) < 0) {
             return false;
         }
-        reservacion.cambiarEstado(Reservacion.Estado.CONFIRMADA);
+        reservacion.confirmarPago(Reservacion.MetodoPago.EFECTIVO);
         return true;
     }
 
     public synchronized boolean pagarTerminal(Reservacion reservacion, boolean aprobada) {
         verificarActiva(reservacion);
         if (aprobada) {
-            reservacion.cambiarEstado(Reservacion.Estado.CONFIRMADA);
+            reservacion.confirmarPago(Reservacion.MetodoPago.TERMINAL);
         }
         return aprobada;
     }
@@ -77,7 +78,23 @@ public final class AdministradorBloqueos {
             return;
         }
         bloqueos.entrySet().removeIf(e -> e.getValue() == reservacion);
-        reservacion.cambiarEstado(Reservacion.Estado.CANCELADA);
+        reservacion.cancelar();
+    }
+
+    public synchronized EstadoAsiento consultarEstado(String identificador) {
+        if (!catalogo.containsKey(identificador)) {
+            throw new IllegalArgumentException("El asiento no pertenece a esta sala.");
+        }
+        Reservacion propietario = bloqueos.get(identificador);
+        if (propietario == null) { return EstadoAsiento.DISPONIBLE; }
+        return propietario.getEstado() == Reservacion.Estado.CONFIRMADA
+                ? EstadoAsiento.OCUPADO_PAGADO : EstadoAsiento.EN_COBRO;
+    }
+
+    public synchronized List<Asiento> getDisponibles() {
+        return catalogo.values().stream()
+                .filter(a -> !bloqueos.containsKey(a.getIdentificador()))
+                .sorted(java.util.Comparator.comparing(Asiento::getIdentificador)).toList();
     }
 
     // Recuperación tras un error de pantalla: consulta las confirmadas sin liberarlas ni repetir pagos.
