@@ -6,7 +6,7 @@ Proyecto universitario de Metodologías Ágiles desarrollado con Scrum por un eq
 
 El objetivo general es construir un sistema de consola para administrar reservaciones de cine. Esta entrega prepara únicamente la estructura inicial para desarrollar historias de usuario en ramas independientes.
 
-Las clases están vacías, excepto Main, que imprime el mensaje inicial. HU-01, HU-02, HU-03, HU-04 y HU-05 están pendientes. No se han implementado menús, cálculos, validaciones, cobros ni gestión de asientos o reservaciones.
+HU-01 tiene implementados únicamente los checkpoints 1, 2 y 3: mostrar el precio individual, calcular una selección individual y sumar múltiples asientos. Los demás checkpoints y HU-02 a HU-05 están pendientes. No hay eliminación de asientos, confirmación de reservaciones ni cobros.
 
 ## Tecnologías
 
@@ -30,7 +30,9 @@ Cine-Calidad-Act-1/
 └── README.md
 ```
 
-Main es el punto de entrada. Sala, Asiento, Reservacion, CalculadoraPrecio y Taquilla son clases vacías para el desarrollo futuro, sin atributos ni métodos.
+Main muestra los precios y permite seleccionar asientos escribiendo su identificador; `SALIR` termina la ejecución. Sala proporciona 3 filas de 5 asientos en memoria. Asiento contiene identificador y precio; CalculadoraPrecio suma los importes con BigDecimal. Reservacion y Taquilla siguen vacías.
+
+El precio se configura en `PRECIO_POR_ASIENTO` de Main y comienza en $70.00 MXN. Sala también admite otro precio mediante su constructor. Se rechazan precios negativos o con fracciones de centavo; la consola rechaza asientos inexistentes y repetidos.
 
 ## Ejecutar desde IntelliJ IDEA
 
@@ -52,11 +54,24 @@ javac --release 21 -encoding UTF-8 -d out src/*.java
 java -cp out Main
 ```
 
-Salida esperada:
+La salida comienza con:
 
 ```text
 Sistema de Reservaciones de Cine - Sprint 1
 ```
+
+Después se muestran los 15 asientos con su precio. Por ejemplo, seleccionar A1 y B2 muestra $70.00 y $140.00 MXN respectivamente. Este bloque solo permite seleccionar y salir.
+
+## Pruebas de HU-01 (checkpoints 1 a 3)
+
+Las pruebas sin dependencias están en `tests/PruebasPrecio.java`:
+
+```powershell
+javac --release 21 -encoding UTF-8 -d out src/*.java tests/*.java
+java -cp out PruebasPrecio
+```
+
+Comprueban 29 condiciones: sala e identificadores, precios individuales, selección vacía, uno y varios asientos, inclusión del último asiento, sala completa, tarifa configurable, decimales exactos y argumentos inválidos. Para verificar la consola, probar entradas vacías, Z9, a1, A1 repetido, B2, C5 y SALIR: solo las tres selecciones válidas deben producir $70.00, $140.00 y $210.00 MXN.
 
 `out/` contiene los compilados y está excluida de Git. `--release 21` establece explícitamente Java 21 como versión de compilación. No se requiere Maven ni Gradle.
 
