@@ -11,13 +11,20 @@ public class Main {
     public static void main(String[] args) {
         System.out.println("Sistema de Reservaciones de Cine - Sprint 1");
         Sala sala = new Sala(PRECIO_POR_ASIENTO);
+        ejecutar(sala, new Scanner(System.in));
+    }
+
+    // Entrada separada para probar disponibilidad con la misma sala compartida.
+    static void ejecutar(Sala sala, Scanner entrada) {
+        AdministradorBloqueos administrador = AdministradorBloqueos.paraSala(sala);
         CalculadoraPrecio calculadora = new CalculadoraPrecio();
         List<Asiento> seleccionados = new ArrayList<>();
         for (Asiento asiento : sala.getAsientos()) {
             System.out.println(asiento.getIdentificador() + ": $" + asiento.getPrecio() + " MXN");
         }
-        Scanner entrada = new Scanner(System.in);
         Taquilla taquilla = new Taquilla(entrada, System.out);
+        mostrarDisponibilidad(sala, administrador);
+        System.out.println("DISPONIBILIDAD muestra los estados; NUEVO inicia una selección vacía para otro cliente.");
         System.out.println("Escribe CONFIRMAR para revisar la selección y continuar a taquilla.");
         System.out.println("Selección vacía. Precio de la selección: $0.00 MXN");
         while (true) {
@@ -30,6 +37,19 @@ public class Main {
                 return;
             }
             if (comando.equals("VER")) {
+                mostrarDisponibilidad(sala, administrador);
+                mostrarSeleccion(seleccionados, calculadora);
+                continue;
+            }
+            if (comando.equals("DISPONIBILIDAD")) {
+                mostrarDisponibilidad(sala, administrador);
+                continue;
+            }
+            if (comando.equals("NUEVO")) {
+                seleccionados.clear();
+                calculadora.calcularTotal(seleccionados);
+                System.out.println("Nueva reservación. Selección vacía.");
+                mostrarDisponibilidad(sala, administrador);
                 mostrarSeleccion(seleccionados, calculadora);
                 continue;
             }
@@ -38,6 +58,15 @@ public class Main {
                     System.out.println("Selecciona al menos un asiento antes de continuar.");
                     continue;
                 }
+                boolean disponible = true;
+                for (Asiento asiento : seleccionados) {
+                    if (administrador.consultarEstado(asiento.getIdentificador())
+                            != AdministradorBloqueos.EstadoAsiento.DISPONIBLE) {
+                        rechazarNoDisponible(asiento, administrador);
+                        disponible = false;
+                    }
+                }
+                if (!disponible) { continue; }
                 taquilla.mostrarResumen(seleccionados);
                 String decision;
                 while (true) {
@@ -55,9 +84,11 @@ public class Main {
                     System.out.println("Compra finalizada. Los asientos pagados permanecen protegidos.");
                     seleccionados.clear();
                     calculadora.calcularTotal(seleccionados);
+                    System.out.println("Puedes comenzar la reservación del siguiente cliente.");
                 } else {
                     System.out.println("No se confirmó una compra. Puedes modificar la selección o reintentar.");
                 }
+                mostrarDisponibilidad(sala, administrador);
                 continue;
             }
             String[] partes = comando.split("\\s+");
@@ -81,6 +112,9 @@ public class Main {
                 System.out.println("Ese asiento no está seleccionado.");
             } else if (!eliminar && seleccionados.contains(elegido)) {
                 System.out.println("Ese asiento ya está seleccionado.");
+            } else if (!eliminar && administrador.consultarEstado(elegido.getIdentificador())
+                    != AdministradorBloqueos.EstadoAsiento.DISPONIBLE) {
+                rechazarNoDisponible(elegido, administrador);
             } else {
                 // Validar y calcular la nueva selección antes de reemplazar la lista de consola.
                 List<Asiento> nuevaSeleccion = new ArrayList<>(seleccionados);
@@ -93,6 +127,19 @@ public class Main {
                 seleccionados = nuevaSeleccion;
                 mostrarSeleccion(seleccionados, calculadora);
             }
+        }
+    }
+
+    private static void rechazarNoDisponible(Asiento asiento, AdministradorBloqueos administrador) {
+        System.out.println("El asiento " + asiento.getIdentificador() + " está protegido por otro cobro. Estado: "
+                + administrador.consultarEstado(asiento.getIdentificador()));
+    }
+
+    private static void mostrarDisponibilidad(Sala sala, AdministradorBloqueos administrador) {
+        System.out.println("Disponibilidad actual de la sala:");
+        for (Asiento asiento : sala.getAsientos()) {
+            System.out.println(asiento.getIdentificador() + " - "
+                    + administrador.consultarEstado(asiento.getIdentificador()));
         }
     }
 
