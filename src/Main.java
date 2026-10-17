@@ -17,6 +17,8 @@ public class Main {
             System.out.println(asiento.getIdentificador() + ": $" + asiento.getPrecio() + " MXN");
         }
         Scanner entrada = new Scanner(System.in);
+        Taquilla taquilla = new Taquilla(entrada, System.out);
+        System.out.println("Escribe CONFIRMAR para revisar la selección y continuar a taquilla.");
         System.out.println("Selección vacía. Precio de la selección: $0.00 MXN");
         while (true) {
             System.out.println("Escribe un asiento (A1), AGREGAR A1, ELIMINAR A1, VER o SALIR:");
@@ -29,6 +31,33 @@ public class Main {
             }
             if (comando.equals("VER")) {
                 mostrarSeleccion(seleccionados, calculadora);
+                continue;
+            }
+            if (comando.equals("CONFIRMAR")) {
+                if (seleccionados.isEmpty()) {
+                    System.out.println("Selecciona al menos un asiento antes de continuar.");
+                    continue;
+                }
+                taquilla.mostrarResumen(seleccionados);
+                String decision;
+                while (true) {
+                    System.out.println("Escribe CONTINUAR para capturar al cliente o VOLVER para modificar asientos:");
+                    if (!entrada.hasNextLine()) { return; }
+                    decision = entrada.nextLine().strip().toUpperCase(Locale.ROOT);
+                    if (decision.equals("CONTINUAR") || decision.equals("VOLVER")) { break; }
+                    System.out.println("Opción inválida. Usa CONTINUAR o VOLVER.");
+                }
+                if (decision.equals("VOLVER")) { continue; }
+                var cliente = taquilla.capturarCliente();
+                if (cliente.isEmpty()) { return; }
+                var reservacion = taquilla.cobrar(cliente.get(), sala, List.copyOf(seleccionados));
+                if (reservacion.isPresent()) {
+                    System.out.println("Compra finalizada. Los asientos pagados permanecen protegidos.");
+                    seleccionados.clear();
+                    calculadora.calcularTotal(seleccionados);
+                } else {
+                    System.out.println("No se confirmó una compra. Puedes modificar la selección o reintentar.");
+                }
                 continue;
             }
             String[] partes = comando.split("\\s+");
