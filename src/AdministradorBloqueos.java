@@ -103,6 +103,12 @@ public final class AdministradorBloqueos {
                 .filter(r -> r.getEstado() == Reservacion.Estado.CONFIRMADA).toList();
     }
 
+    public synchronized java.util.Optional<Reservacion> buscarConfirmada(java.util.UUID folio) {
+        Reservacion reservacion = operaciones.get(folio);
+        return reservacion != null && reservacion.getEstado() == Reservacion.Estado.CONFIRMADA
+                ? java.util.Optional.of(reservacion) : java.util.Optional.empty();
+    }
+
     private void verificarPropietario(Reservacion reservacion) {
         if (reservacion == null || operaciones.get(reservacion.getId()) != reservacion) {
             throw new IllegalArgumentException("La operación no pertenece a este administrador.");
