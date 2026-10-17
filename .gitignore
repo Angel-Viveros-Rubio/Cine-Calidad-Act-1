@@ -35,3 +35,6 @@ build/
 *.tmp
 *.swp
 *~
+
+# Generated reservation receipts and test artifacts
+comprobantes/
