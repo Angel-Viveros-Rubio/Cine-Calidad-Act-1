@@ -26,6 +26,7 @@ public class Main {
         mostrarDisponibilidad(sala, administrador);
         System.out.println("DISPONIBILIDAD muestra los estados; NUEVO inicia una selección vacía para otro cliente.");
         System.out.println("Escribe CONFIRMAR para revisar la selección y continuar a taquilla.");
+        System.out.println("COMPROBANTES consulta las pagadas; REEMITIR recupera un comprobante por folio.");
         System.out.println("Selección vacía. Precio de la selección: $0.00 MXN");
         while (true) {
             System.out.println("Escribe un asiento (A1), AGREGAR A1, ELIMINAR A1, VER o SALIR:");
@@ -35,6 +36,41 @@ public class Main {
             String comando = entrada.nextLine().strip().toUpperCase(Locale.ROOT);
             if (comando.equals("SALIR")) {
                 return;
+            }
+            if (comando.equals("COMPROBANTES")) {
+                var pagadas = administrador.getConfirmadas();
+                if (pagadas.isEmpty()) { System.out.println("No hay reservaciones pagadas en esta ejecución."); }
+                for (Reservacion pagada : pagadas) {
+                    System.out.println("Folio: " + pagada.getId() + " | Cliente: " + pagada.getCliente().getNombre()
+                            + " | Total: $" + pagada.getTotal() + " MXN | " + pagada.getMetodoPago()
+                            + " | " + pagada.getFechaConfirmacion());
+                }
+                continue;
+            }
+            if (comando.equals("REEMITIR")) {
+                System.out.println("Folio de la reservación pagada:");
+                if (!entrada.hasNextLine()) { return; }
+                java.util.Optional<Reservacion> pagada;
+                try {
+                    pagada = administrador.buscarConfirmada(java.util.UUID.fromString(entrada.nextLine().strip()));
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Folio inválido.");
+                    continue;
+                }
+                if (pagada.isEmpty()) {
+                    System.out.println("No existe una reservación pagada con ese folio en esta ejecución.");
+                    continue;
+                }
+                System.out.println("Directorio destino (Enter = comprobantes):");
+                if (!entrada.hasNextLine()) { return; }
+                String directorio = entrada.nextLine().strip();
+                try {
+                    taquilla.generarComprobante(pagada.get(), java.nio.file.Path.of(
+                            directorio.isEmpty() ? "comprobantes" : directorio));
+                } catch (java.nio.file.InvalidPathException e) {
+                    System.out.println("Ruta inválida. Puedes reintentar REEMITIR sin volver a pagar.");
+                }
+                continue;
             }
             if (comando.equals("VER")) {
                 mostrarDisponibilidad(sala, administrador);
