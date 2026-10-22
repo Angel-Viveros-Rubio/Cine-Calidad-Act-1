@@ -44,7 +44,7 @@ public class PruebasCierre {
         contiene(salida, "No se pudo escribir el comprobante.");
         contiene(salida, "El asiento A1 está protegido");
         contiene(salida, "El asiento A3 está protegido");
-        contiene(salida, "B1 - DISPONIBLE");
+        contiene(salida, "B1[L]");
         verificar(admin == AdministradorBloqueos.paraSala(sala), "Administrador conservado");
         verificar(admin.getConfirmadas().size() == 2, "Reemitir no crea reservaciones");
         verificar(admin.getDisponibles().size() == 12, "Solo tres asientos pagados");
@@ -79,7 +79,7 @@ public class PruebasCierre {
         cantidad(salida, "Reservación confirmada:", 1);
         cantidad(salida, "Pago:", 1);
         cantidad(salida, "Comprobante:", 2);
-        contiene(salida, "C5 - OCUPADO_PAGADO");
+        contiene(salida, "C5[P]");
         System.out.println("OK: " + verificaciones + " verificaciones de cierre.");
     }
 
