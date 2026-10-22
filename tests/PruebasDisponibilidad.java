@@ -19,9 +19,9 @@ public class PruebasDisponibilidad {
         cantidad(salida, "Reservación confirmada:", 2);
         cantidad(salida, "Comprobante:", 2);
         contiene(salida, "Nueva reservación. Selección vacía.");
-        contiene(salida, "A1 - OCUPADO_PAGADO");
-        contiene(salida, "A2 - OCUPADO_PAGADO");
-        contiene(salida, "A3 - OCUPADO_PAGADO");
+        contiene(salida, "A1[P]");
+        contiene(salida, "A2[P]");
+        contiene(salida, "A3[P]");
         contiene(salida, "El asiento A1 está protegido por otro cobro.");
         contiene(salida, "El asiento A2 está protegido por otro cobro.");
         verificar(admin.getConfirmadas().size() == 2, "Mismo administrador conserva ambas compras");
@@ -36,7 +36,7 @@ public class PruebasDisponibilidad {
 
         Sala cancelacion = nuevaSala();
         salida = ejecutar(cancelacion, "B1\nCONFIRMAR\nCONTINUAR\nAna\n555\n0\nNUEVO\nB1\nCONFIRMAR\nCONTINUAR\nLuis\n666\n2\n1\nSALIR\n", null);
-        contiene(salida, "B1 - DISPONIBLE");
+        contiene(salida, "B1[L]");
         cantidad(salida, "Reservación confirmada:", 1);
         verificar(AdministradorBloqueos.paraSala(cancelacion).getConfirmadas().get(0).getCliente().getNombre().equals("Luis"),
                 "Cancelación no registra compra de Ana");
@@ -45,15 +45,15 @@ public class PruebasDisponibilidad {
         var otroAdmin = AdministradorBloqueos.paraSala(bloqueada);
         Reservacion otroCobro = otroAdmin.iniciar(CLIENTE, bloqueada.getAsientos().subList(0, 2));
         salida = ejecutar(bloqueada, "A3\nA1\nAGREGAR A2\nVER\nSALIR\n", null);
-        contiene(salida, "A1 - EN_COBRO");
-        contiene(salida, "A2 - EN_COBRO");
+        contiene(salida, "A1[B]");
+        contiene(salida, "A2[B]");
         contiene(salida, "Asientos seleccionados: A3");
         verificar(salida.lines().filter(l -> l.equals("Precio de la selección: $70.00 MXN")).count() == 2,
                 "Rechazos mantienen el total");
         verificar(!salida.contains("Precio de la selección: $140.00 MXN"), "Sin suma de bloqueados");
         otroAdmin.cancelar(otroCobro);
         salida = ejecutar(bloqueada, "A1\nVER\nSALIR\n", null);
-        contiene(salida, "A1 - DISPONIBLE");
+        contiene(salida, "A1[L]");
         contiene(salida, "Asientos seleccionados: A1");
 
         // Otro cobro toma el asiento después de seleccionarlo, antes del resumen.

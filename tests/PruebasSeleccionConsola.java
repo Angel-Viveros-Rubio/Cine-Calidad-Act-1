@@ -11,8 +11,8 @@ public class PruebasSeleccionConsola {
 
     public static void main(String[] args) {
         String salida = ejecutar("A1\nAGREGAR B2\nC5\nVER\nSALIR\n");
-        contiene(salida, "A1: $70.00 MXN");
-        contiene(salida, "C5: $70.00 MXN");
+        contiene(salida, "Precio por asiento: $70.00 MXN");
+        contiene(salida, "C5[L]");
         totales(salida, "70.00", "140.00", "210.00", "210.00");
         contiene(salida, "Asientos seleccionados: A1, B2, C5");
 
@@ -54,7 +54,7 @@ public class PruebasSeleccionConsola {
             for (int numero = 1; numero <= 5; numero++) { salaCompleta.append("ELIMINAR ").append(fila).append(numero).append('\n'); }
         }
         salida = ejecutar(salaCompleta + "VER\nSALIR\n");
-        comprobar(salida.strip().endsWith("Escribe un asiento (A1), AGREGAR A1, ELIMINAR A1, VER o SALIR:"), "Termina sin error");
+        comprobar(salida.strip().endsWith("Comando:"), "Termina sin error");
         List<String> valores = valores(salida);
         comprobar(valores.get(valores.size() - 1).equals("0.00"), "Vaciar sala completa termina en cero");
         comprobar(!salida.contains("$-"), "Sala completa sin negativos");

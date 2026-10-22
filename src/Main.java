@@ -19,17 +19,16 @@ public class Main {
         AdministradorBloqueos administrador = AdministradorBloqueos.paraSala(sala);
         CalculadoraPrecio calculadora = new CalculadoraPrecio();
         List<Asiento> seleccionados = new ArrayList<>();
-        for (Asiento asiento : sala.getAsientos()) {
-            System.out.println(asiento.getIdentificador() + ": $" + asiento.getPrecio() + " MXN");
-        }
+        PresentacionConsola presentacion = new PresentacionConsola(System.out);
+        presentacion.mostrarMenu();
+        sala.getAsientos().stream().map(Asiento::getPrecio).distinct()
+                .forEach(precio -> System.out.println("Precio por asiento: $" + precio + " MXN"));
         Taquilla taquilla = new Taquilla(entrada, System.out);
-        mostrarDisponibilidad(sala, administrador);
-        System.out.println("DISPONIBILIDAD muestra los estados; NUEVO inicia una selección vacía para otro cliente.");
-        System.out.println("Escribe CONFIRMAR para revisar la selección y continuar a taquilla.");
-        System.out.println("COMPROBANTES consulta las pagadas; REEMITIR recupera un comprobante por folio.");
+        presentacion.mostrarSala(sala, administrador, seleccionados);
         System.out.println("Selección vacía. Precio de la selección: $0.00 MXN");
+        presentacion.mostrarAyuda(false);
         while (true) {
-            System.out.println("Escribe un asiento (A1), AGREGAR A1, ELIMINAR A1, VER o SALIR:");
+            System.out.println("Comando:");
             if (!entrada.hasNextLine()) {
                 return;
             }
@@ -38,13 +37,7 @@ public class Main {
                 return;
             }
             if (comando.equals("COMPROBANTES")) {
-                var pagadas = administrador.getConfirmadas();
-                if (pagadas.isEmpty()) { System.out.println("No hay reservaciones pagadas en esta ejecución."); }
-                for (Reservacion pagada : pagadas) {
-                    System.out.println("Folio: " + pagada.getId() + " | Cliente: " + pagada.getCliente().getNombre()
-                            + " | Total: $" + pagada.getTotal() + " MXN | " + pagada.getMetodoPago()
-                            + " | " + pagada.getFechaConfirmacion());
-                }
+                presentacion.mostrarComprobantes(administrador.getConfirmadas());
                 continue;
             }
             if (comando.equals("REEMITIR")) {
@@ -54,11 +47,11 @@ public class Main {
                 try {
                     pagada = administrador.buscarConfirmada(java.util.UUID.fromString(entrada.nextLine().strip()));
                 } catch (IllegalArgumentException e) {
-                    System.out.println("Folio inválido.");
+                    System.out.println("Folio inválido. Copia el UUID completo que aparece en COMPROBANTES.");
                     continue;
                 }
                 if (pagada.isEmpty()) {
-                    System.out.println("No existe una reservación pagada con ese folio en esta ejecución.");
+                    System.out.println("No existe una reservación pagada con ese folio en esta ejecución. Consulta COMPROBANTES.");
                     continue;
                 }
                 System.out.println("Directorio destino (Enter = comprobantes):");
@@ -73,25 +66,28 @@ public class Main {
                 continue;
             }
             if (comando.equals("VER")) {
-                mostrarDisponibilidad(sala, administrador);
-                mostrarSeleccion(seleccionados, calculadora);
+                presentacion.mostrarSala(sala, administrador, seleccionados);
+                presentacion.mostrarSeleccion(seleccionados, calculadora);
+                presentacion.mostrarAyuda(!seleccionados.isEmpty());
                 continue;
             }
             if (comando.equals("DISPONIBILIDAD")) {
-                mostrarDisponibilidad(sala, administrador);
+                presentacion.mostrarSala(sala, administrador, seleccionados);
                 continue;
             }
             if (comando.equals("NUEVO")) {
                 seleccionados.clear();
                 calculadora.calcularTotal(seleccionados);
                 System.out.println("Nueva reservación. Selección vacía.");
-                mostrarDisponibilidad(sala, administrador);
-                mostrarSeleccion(seleccionados, calculadora);
+                presentacion.mostrarSala(sala, administrador, seleccionados);
+                presentacion.mostrarSeleccion(seleccionados, calculadora);
+                presentacion.mostrarAyuda(false);
                 continue;
             }
             if (comando.equals("CONFIRMAR")) {
                 if (seleccionados.isEmpty()) {
                     System.out.println("Selecciona al menos un asiento antes de continuar.");
+                    presentacion.mostrarAyuda(false);
                     continue;
                 }
                 boolean disponible = true;
@@ -124,7 +120,8 @@ public class Main {
                 } else {
                     System.out.println("No se confirmó una compra. Puedes modificar la selección o reintentar.");
                 }
-                mostrarDisponibilidad(sala, administrador);
+                presentacion.mostrarSala(sala, administrador, seleccionados);
+                presentacion.mostrarAyuda(!seleccionados.isEmpty());
                 continue;
             }
             String[] partes = comando.split("\\s+");
@@ -144,6 +141,7 @@ public class Main {
             }
             if (elegido == null) {
                 System.out.println("Asiento inexistente. Usa A1 a C5.");
+                System.out.println("Formato: AGREGAR A1 o A1. Consulta el mapa con DISPONIBILIDAD.");
             } else if (eliminar && !seleccionados.contains(elegido)) {
                 System.out.println("Ese asiento no está seleccionado.");
             } else if (!eliminar && seleccionados.contains(elegido)) {
@@ -161,7 +159,8 @@ public class Main {
                 }
                 calculadora.calcularTotal(nuevaSeleccion);
                 seleccionados = nuevaSeleccion;
-                mostrarSeleccion(seleccionados, calculadora);
+                presentacion.mostrarSeleccion(seleccionados, calculadora);
+                presentacion.mostrarAyuda(!seleccionados.isEmpty());
             }
         }
     }
@@ -169,23 +168,6 @@ public class Main {
     private static void rechazarNoDisponible(Asiento asiento, AdministradorBloqueos administrador) {
         System.out.println("El asiento " + asiento.getIdentificador() + " está protegido por otro cobro. Estado: "
                 + administrador.consultarEstado(asiento.getIdentificador()));
-    }
-
-    private static void mostrarDisponibilidad(Sala sala, AdministradorBloqueos administrador) {
-        System.out.println("Disponibilidad actual de la sala:");
-        for (Asiento asiento : sala.getAsientos()) {
-            System.out.println(asiento.getIdentificador() + " - "
-                    + administrador.consultarEstado(asiento.getIdentificador()));
-        }
-    }
-
-    private static void mostrarSeleccion(List<Asiento> seleccionados, CalculadoraPrecio calculadora) {
-        if (seleccionados.isEmpty()) {
-            System.out.println("Selección vacía.");
-        } else {
-            System.out.println("Asientos seleccionados: " + String.join(", ",
-                    seleccionados.stream().map(Asiento::getIdentificador).toList()));
-        }
-        System.out.println("Precio de la selección: $" + calculadora.getTotalAcumulado() + " MXN");
+        System.out.println("No está disponible. Elige un lugar [L] en DISPONIBILIDAD; tu total no cambia.");
     }
 }
